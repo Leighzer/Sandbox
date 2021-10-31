@@ -5,9 +5,11 @@ VisualStudioVersion = 16.0.31702.278
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HelloWorld", "HelloWorld\HelloWorld.vcxproj", "{77B2979B-5073-425E-A236-C1F0CE02C341}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SwapTwoNumbers", "..\SwapTwoNumbers\SwapTwoNumbers.vcxproj", "{4D9D8738-1B15-4750-835A-E3EE25F22FD6}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SwapTwoNumbers", "SwapTwoNumbers\SwapTwoNumbers.vcxproj", "{4D9D8738-1B15-4750-835A-E3EE25F22FD6}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArmstrongNumbers", "..\ArmstrongNumbers\ArmstrongNumbers.vcxproj", "{6F3FBE89-050D-4D83-9865-4660F5233F59}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArmstrongNumbers", "ArmstrongNumbers\ArmstrongNumbers.vcxproj", "{6F3FBE89-050D-4D83-9865-4660F5233F59}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Factorial", "Factorial\Factorial\Factorial.vcxproj", "{4D95D585-645B-485D-96E8-56C08FA4769C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -41,6 +43,14 @@ Global
 		{6F3FBE89-050D-4D83-9865-4660F5233F59}.Release|x64.Build.0 = Release|x64
 		{6F3FBE89-050D-4D83-9865-4660F5233F59}.Release|x86.ActiveCfg = Release|Win32
 		{6F3FBE89-050D-4D83-9865-4660F5233F59}.Release|x86.Build.0 = Release|Win32
+		{4D95D585-645B-485D-96E8-56C08FA4769C}.Debug|x64.ActiveCfg = Debug|x64
+		{4D95D585-645B-485D-96E8-56C08FA4769C}.Debug|x64.Build.0 = Debug|x64
+		{4D95D585-645B-485D-96E8-56C08FA4769C}.Debug|x86.ActiveCfg = Debug|Win32
+		{4D95D585-645B-485D-96E8-56C08FA4769C}.Debug|x86.Build.0 = Debug|Win32
+		{4D95D585-645B-485D-96E8-56C08FA4769C}.Release|x64.ActiveCfg = Release|x64
+		{4D95D585-645B-485D-96E8-56C08FA4769C}.Release|x64.Build.0 = Release|x64
+		{4D95D585-645B-485D-96E8-56C08FA4769C}.Release|x86.ActiveCfg = Release|Win32
+		{4D95D585-645B-485D-96E8-56C08FA4769C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
