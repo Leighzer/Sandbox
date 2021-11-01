@@ -9,7 +9,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SwapTwoNumbers", "SwapTwoNu
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArmstrongNumbers", "ArmstrongNumbers\ArmstrongNumbers.vcxproj", "{6F3FBE89-050D-4D83-9865-4660F5233F59}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Factorial", "Factorial\Factorial\Factorial.vcxproj", "{4D95D585-645B-485D-96E8-56C08FA4769C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Factorial", "Factorial\Factorial.vcxproj", "{4D95D585-645B-485D-96E8-56C08FA4769C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
