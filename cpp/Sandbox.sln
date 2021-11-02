@@ -15,6 +15,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Fibonacci", "Fibonacci\Fibo
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PrimeNumbers", "PrimeNumbers\PrimeNumbers.vcxproj", "{B928A044-20AC-4DA2-81F9-EFA2D3BAB840}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Palindrome", "Palindrome\Palindrome.vcxproj", "{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -71,6 +73,14 @@ Global
 		{B928A044-20AC-4DA2-81F9-EFA2D3BAB840}.Release|x64.Build.0 = Release|x64
 		{B928A044-20AC-4DA2-81F9-EFA2D3BAB840}.Release|x86.ActiveCfg = Release|Win32
 		{B928A044-20AC-4DA2-81F9-EFA2D3BAB840}.Release|x86.Build.0 = Release|Win32
+		{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}.Debug|x64.ActiveCfg = Debug|x64
+		{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}.Debug|x64.Build.0 = Debug|x64
+		{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}.Debug|x86.ActiveCfg = Debug|Win32
+		{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}.Debug|x86.Build.0 = Debug|Win32
+		{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}.Release|x64.ActiveCfg = Release|x64
+		{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}.Release|x64.Build.0 = Release|x64
+		{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}.Release|x86.ActiveCfg = Release|Win32
+		{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
