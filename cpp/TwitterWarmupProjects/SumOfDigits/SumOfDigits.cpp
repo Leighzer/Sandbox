@@ -1,6 +1,4 @@
-#include <vector>
 #include <string>
-#include <sstream>
 #include <iostream>
 
 unsigned long long SumOfDigits(std::string numbers) {

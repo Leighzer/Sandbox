@@ -1,10 +1,8 @@
 #include <iostream>
-#include <stdlib.h> 
+#include <stdlib.h>
 #include <time.h>
 #include <vector>
-#include <iostream>
 #include <string>
-#include <vector>
 
 int main()
 {

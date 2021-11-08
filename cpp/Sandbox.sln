@@ -3,25 +3,27 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31702.278
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HelloWorld", "HelloWorld\HelloWorld.vcxproj", "{77B2979B-5073-425E-A236-C1F0CE02C341}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HelloWorld", "TwitterWarmupProjects\HelloWorld\HelloWorld.vcxproj", "{77B2979B-5073-425E-A236-C1F0CE02C341}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SwapTwoNumbers", "SwapTwoNumbers\SwapTwoNumbers.vcxproj", "{4D9D8738-1B15-4750-835A-E3EE25F22FD6}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SwapTwoNumbers", "TwitterWarmupProjects\SwapTwoNumbers\SwapTwoNumbers.vcxproj", "{4D9D8738-1B15-4750-835A-E3EE25F22FD6}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArmstrongNumbers", "ArmstrongNumbers\ArmstrongNumbers.vcxproj", "{6F3FBE89-050D-4D83-9865-4660F5233F59}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArmstrongNumbers", "TwitterWarmupProjects\ArmstrongNumbers\ArmstrongNumbers.vcxproj", "{6F3FBE89-050D-4D83-9865-4660F5233F59}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Factorial", "Factorial\Factorial.vcxproj", "{4D95D585-645B-485D-96E8-56C08FA4769C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Factorial", "TwitterWarmupProjects\Factorial\Factorial.vcxproj", "{4D95D585-645B-485D-96E8-56C08FA4769C}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Fibonacci", "Fibonacci\Fibonacci.vcxproj", "{72B5F12E-FA7E-4E17-8343-DFC8C6775718}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Fibonacci", "TwitterWarmupProjects\Fibonacci\Fibonacci.vcxproj", "{72B5F12E-FA7E-4E17-8343-DFC8C6775718}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PrimeNumbers", "PrimeNumbers\PrimeNumbers.vcxproj", "{B928A044-20AC-4DA2-81F9-EFA2D3BAB840}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PrimeNumbers", "TwitterWarmupProjects\PrimeNumbers\PrimeNumbers.vcxproj", "{B928A044-20AC-4DA2-81F9-EFA2D3BAB840}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Palindrome", "Palindrome\Palindrome.vcxproj", "{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Palindrome", "TwitterWarmupProjects\Palindrome\Palindrome.vcxproj", "{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SumOfDigits", "SumOfDigits\SumOfDigits.vcxproj", "{96D7F19A-0926-4DC0-8655-03F90C5563B8}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SumOfDigits", "TwitterWarmupProjects\SumOfDigits\SumOfDigits.vcxproj", "{96D7F19A-0926-4DC0-8655-03F90C5563B8}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PositiveNegative", "PositiveNegative\PositiveNegative.vcxproj", "{C55A7BF4-97BA-4B04-904C-900D4B1B2A76}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PositiveNegative", "TwitterWarmupProjects\PositiveNegative\PositiveNegative.vcxproj", "{C55A7BF4-97BA-4B04-904C-900D4B1B2A76}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LargestNumber", "LargestNumber\LargestNumber.vcxproj", "{593582F3-30C5-440B-8DC9-7E9C0D2FC2CD}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LargestNumber", "TwitterWarmupProjects\LargestNumber\LargestNumber.vcxproj", "{593582F3-30C5-440B-8DC9-7E9C0D2FC2CD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TwitterWarmupProjects", "TwitterWarmupProjects", "{01FFDA09-C579-47A3-A751-1C02FCF32B31}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -114,6 +116,18 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{77B2979B-5073-425E-A236-C1F0CE02C341} = {01FFDA09-C579-47A3-A751-1C02FCF32B31}
+		{4D9D8738-1B15-4750-835A-E3EE25F22FD6} = {01FFDA09-C579-47A3-A751-1C02FCF32B31}
+		{6F3FBE89-050D-4D83-9865-4660F5233F59} = {01FFDA09-C579-47A3-A751-1C02FCF32B31}
+		{4D95D585-645B-485D-96E8-56C08FA4769C} = {01FFDA09-C579-47A3-A751-1C02FCF32B31}
+		{72B5F12E-FA7E-4E17-8343-DFC8C6775718} = {01FFDA09-C579-47A3-A751-1C02FCF32B31}
+		{B928A044-20AC-4DA2-81F9-EFA2D3BAB840} = {01FFDA09-C579-47A3-A751-1C02FCF32B31}
+		{B955DD67-DC1F-4268-9B0E-0F29C0CB74D5} = {01FFDA09-C579-47A3-A751-1C02FCF32B31}
+		{96D7F19A-0926-4DC0-8655-03F90C5563B8} = {01FFDA09-C579-47A3-A751-1C02FCF32B31}
+		{C55A7BF4-97BA-4B04-904C-900D4B1B2A76} = {01FFDA09-C579-47A3-A751-1C02FCF32B31}
+		{593582F3-30C5-440B-8DC9-7E9C0D2FC2CD} = {01FFDA09-C579-47A3-A751-1C02FCF32B31}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {DBE87C3C-DFBE-4E07-A9A0-6F6DBED713F0}

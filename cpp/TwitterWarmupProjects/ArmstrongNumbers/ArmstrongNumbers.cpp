@@ -6,13 +6,15 @@ bool IsArmstrong(int number);
 
 int main()
 {   
-    for (int i = 0; i < 10000000; i++)
+    const int maxIntToSearch = 10000000;
+    for (int i = 0; i < maxIntToSearch; i++)
     {
         bool isArmstrong = IsArmstrong(i);
         if (isArmstrong) {
             std::cout << i << ": " << (isArmstrong ? "Yes" : "No") << "\n";
         }
     }
+    std::cout << "DONE SEARCHING TO " << maxIntToSearch << "\n";
 }
 
 bool IsArmstrong(int number) {
