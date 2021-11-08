@@ -1,10 +1,13 @@
 #include <iostream>
 
-bool isPalindrome(std::string possiblePalindrome) {
+// pass a const reference so that possiblePalindrome may not be edited
+// and we save time by avoiding making a copy of possiblePalindrome by passing
+// by reference
+bool isPalindrome(const std::string& possiblePalindrome) {
     bool isOddLength = possiblePalindrome.length() % 2 == 1;
     int iterations = possiblePalindrome.length() / 2;
     if (isOddLength) {
-        iterations++;
+        ++iterations;
     }
 
     bool isNotPalindrome = false;
@@ -24,7 +27,7 @@ bool isPalindrome(std::string possiblePalindrome) {
 int main(int argc, char** argv)
 {
     if (argc >= 2) {
-        std::string possiblePalindrome = argv[1];
+        std::string possiblePalindrome{ argv[1] };
 
         std::cout << (isPalindrome(possiblePalindrome) ? "Yes" : "No") << "\n";
     }

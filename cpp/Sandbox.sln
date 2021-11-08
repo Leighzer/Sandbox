@@ -25,6 +25,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LargestNumber", "TwitterWar
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TwitterWarmupProjects", "TwitterWarmupProjects", "{01FFDA09-C579-47A3-A751-1C02FCF32B31}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ArgTest", "ArgTest\ArgTest.vcxproj", "{CC1F2C0C-6E7F-4A0C-8CCF-FE8292D11FDD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -113,6 +115,14 @@ Global
 		{593582F3-30C5-440B-8DC9-7E9C0D2FC2CD}.Release|x64.Build.0 = Release|x64
 		{593582F3-30C5-440B-8DC9-7E9C0D2FC2CD}.Release|x86.ActiveCfg = Release|Win32
 		{593582F3-30C5-440B-8DC9-7E9C0D2FC2CD}.Release|x86.Build.0 = Release|Win32
+		{CC1F2C0C-6E7F-4A0C-8CCF-FE8292D11FDD}.Debug|x64.ActiveCfg = Debug|x64
+		{CC1F2C0C-6E7F-4A0C-8CCF-FE8292D11FDD}.Debug|x64.Build.0 = Debug|x64
+		{CC1F2C0C-6E7F-4A0C-8CCF-FE8292D11FDD}.Debug|x86.ActiveCfg = Debug|Win32
+		{CC1F2C0C-6E7F-4A0C-8CCF-FE8292D11FDD}.Debug|x86.Build.0 = Debug|Win32
+		{CC1F2C0C-6E7F-4A0C-8CCF-FE8292D11FDD}.Release|x64.ActiveCfg = Release|x64
+		{CC1F2C0C-6E7F-4A0C-8CCF-FE8292D11FDD}.Release|x64.Build.0 = Release|x64
+		{CC1F2C0C-6E7F-4A0C-8CCF-FE8292D11FDD}.Release|x86.ActiveCfg = Release|Win32
+		{CC1F2C0C-6E7F-4A0C-8CCF-FE8292D11FDD}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
