@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "async": {
+      "commandName": "Project",
+      "commandLineArgs": "async"
+    }
+  }
+}
