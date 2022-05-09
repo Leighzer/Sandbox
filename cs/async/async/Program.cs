@@ -1,5 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace async
@@ -7,75 +11,56 @@ namespace async
     // code to highlight advantage of async vs sync code
     public class Program
     {
-        public const string sync_arg = "sync";
-        public const string async_arg = "async";
-        public const int delay = 1000000;
-
-        public static void Main(string[] args)
+        public const int Delay = 1000;
+        public static void Main()
         {
-            if (args.Length != 1)
-            {
-                Console.WriteLine($"You must supply 1 argument {sync_arg} or {async_arg}");
-                return;
-            }
-            else
-            {
-                Stopwatch watch = new Stopwatch();
-                string arg = args[0];
-                if (arg != sync_arg && arg != async_arg)
-                {
-                    Console.WriteLine($"You must supply 1 argument {sync_arg} or {async_arg}");
-                    return;
-                }
-                else if (arg == sync_arg)
-                {
-                    watch.Restart();
-                    ulong sum = Sync(watch);
-                    watch.Stop();
-                    Console.WriteLine(sum + $" {watch.ElapsedTicks}");
-                }
-                else
-                {
-                    watch.Restart();
-                    ulong sum = Async(watch).GetAwaiter().GetResult();
-                    watch.Stop();
-                    Console.WriteLine(sum + $" {watch.ElapsedTicks}");
-                }
-            }
+            MainAsync().GetAwaiter().GetResult();
         }
 
-        public static ulong Sync(Stopwatch watch)
+        public static async Task MainAsync()
         {
-            Console.WriteLine($"Begin delay {watch.ElapsedTicks}");
-            Task.Delay(10000).GetAwaiter().GetResult();
-            Console.WriteLine($"end delay {watch.ElapsedTicks}");
-
-            Console.WriteLine($"Begin sum {watch.ElapsedTicks}");
-            ulong sum = 0;
-            for (ulong i = 0; i < 1000000000; i++)
+            Stopwatch watch = new Stopwatch();
+            watch.Restart();
+            for (int i = 0; i < 10; i++)
             {
-                sum = sum + i;
+                DoWork(i, watch);
             }
-            Console.WriteLine($"End sum {watch.ElapsedTicks}");
+            watch.Stop();
+            long syncMilliseconds = watch.ElapsedMilliseconds;
+            Console.WriteLine($"Sync milliseconds for {syncMilliseconds}\n");
+                
+            watch.Restart();
+            List<Task> asyncTasks = new List<Task>();
+            for (int i = 10; i < 20; i++)
+            {
+                // start each task and track of them in a list
+                asyncTasks.Add(DowWorkAsync(i, watch));
+            }
+            // wait for when all of our tasks have completed
+            await Task.WhenAll(asyncTasks);
+            watch.Stop();
+            long asyncMilliseconds = watch.ElapsedMilliseconds;
+            Console.WriteLine($"Async milliseconds for {asyncMilliseconds}\n");
 
-            return sum;
+            Console.WriteLine($"Sync is {syncMilliseconds - asyncMilliseconds} milliseconds slower than async in this contrived example");
         }
 
-        public static async Task<ulong> Async(Stopwatch watch)
+        public static int DoWork(int taskId, Stopwatch watch)
         {
-            Console.WriteLine($"Begin delay {watch.ElapsedTicks}");
-            Task.Delay(10000);
-            Console.WriteLine($"End delay {watch.ElapsedTicks}");
+            Console.WriteLine($"Task {taskId} start {watch.ElapsedMilliseconds}");
+            Thread.Sleep(Delay);
+            Console.WriteLine($"Task {taskId} end {watch.ElapsedMilliseconds}");
+            return 0;
+        }
 
-            Console.WriteLine($"Begin sum {watch.ElapsedTicks}");
-            ulong sum = 0;
-            for (ulong i = 0; i < 1000000000; i++)
-            {
-                sum = sum + i;
-            }
-            Console.WriteLine($"End sum {watch.ElapsedTicks}");
-
-            return sum;
+        public static async Task<int> DowWorkAsync(int taskId, Stopwatch watch)
+        {
+            // Schedule work to run on thread pool
+            // Task.Run will return a task we can await and keep track of the work with
+            var test = await Task.Run(() => DoWork(taskId, watch));
+            return test;
         }
     }
+
+    
 }
