@@ -33,7 +33,7 @@ namespace async
             List<Task> asyncTasks = new List<Task>();
             for (int i = 10; i < 20; i++)
             {
-                // start each task and track of them in a list
+                // start each task and track them in a list
                 asyncTasks.Add(DowWorkAsync(i, watch));
             }
             // wait for when all of our tasks have completed
@@ -54,8 +54,7 @@ namespace async
         }
 
         public static async Task<int> DowWorkAsync(int taskId, Stopwatch watch)
-        {
-            // Schedule work to run on thread pool
+        {   
             // Task.Run will return a task we can await and keep track of the work with
             var test = await Task.Run(() => DoWork(taskId, watch));
             return test;
