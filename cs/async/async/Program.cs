@@ -12,12 +12,7 @@ namespace async
     public class Program
     {
         public const int Delay = 1000;
-        public static void Main()
-        {
-            MainAsync().GetAwaiter().GetResult();
-        }
-
-        public static async Task MainAsync()
+        public static async Task Main()
         {
             Stopwatch watch = new Stopwatch();
             watch.Restart();
@@ -28,7 +23,7 @@ namespace async
             watch.Stop();
             long syncMilliseconds = watch.ElapsedMilliseconds;
             Console.WriteLine($"Sync milliseconds for {syncMilliseconds}\n");
-                
+
             watch.Restart();
             List<Task> asyncTasks = new List<Task>();
             for (int i = 10; i < 20; i++)
@@ -60,6 +55,4 @@ namespace async
             return test;
         }
     }
-
-    
 }
