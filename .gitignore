@@ -360,3 +360,4 @@ MigrationBackup/
 FodyWeavers.xsd
 nim/HelloWorld.exe
 nim/HelloName.exe
+nim/Dice.exe
