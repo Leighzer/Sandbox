@@ -12,7 +12,7 @@ fn main() {
 
     let random_val = rng.gen_range(min..=max);
     
-    println!("I have generated a random number between {0} - {1} {2}.", min, max, random_val);
+    println!("I have generated a random number between {0} - {1}.", min, max);
 
     while !is_done {
         println!("Take a guess!");
