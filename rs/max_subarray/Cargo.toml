@@ -1,5 +1,5 @@
 [package]
-name = "max_subarray_sum"
+name = "max_subarray"
 version = "0.1.0"
 edition = "2021"
 
