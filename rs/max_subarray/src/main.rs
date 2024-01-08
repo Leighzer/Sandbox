@@ -8,7 +8,7 @@ fn main() {
         arg.parse().unwrap()
     }).collect();
     
-    println!("{:?}", max_subarray_naive(&numbers));
+    println!("{:?}", max_subarray_kadane(&numbers));
 }
 
 fn max_subarray_kadane(numbers: &Vec<i32>) -> Vec<i32> {
