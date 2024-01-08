@@ -8,10 +8,35 @@ fn main() {
         arg.parse().unwrap()
     }).collect();
     
-    println!("{:?}", max_subarray(&numbers));
+    println!("{:?}", max_subarray_naive(&numbers));
 }
 
-fn max_subarray(numbers: &Vec<i32>) -> Vec<i32> {
+fn max_subarray_kadane(numbers: &Vec<i32>) -> Vec<i32> {
+    let mut max_subarray_sum = i32::MIN;
+    let mut current_subarray_sum = 0;
+    let mut start = 0;
+    let mut end = 0;
+    let mut s = 0;
+
+    for i in 0..(numbers.len()) {
+        current_subarray_sum += numbers[i];
+        
+        if current_subarray_sum > max_subarray_sum {
+            max_subarray_sum = current_subarray_sum;
+            start = s;
+            end = i;
+        }
+
+        if current_subarray_sum < 0 {
+            current_subarray_sum = 0;
+            s = i + 1;
+        }
+    }
+    
+    numbers[start..=end].to_vec()
+}
+
+fn max_subarray_naive(numbers: &Vec<i32>) -> Vec<i32> {
     let mut max_subarray_sum: i32 = i32::MIN;
     let mut max_subarray: Vec<i32> = Vec::<i32>::new();
     
@@ -39,9 +64,21 @@ fn max_subarray(numbers: &Vec<i32>) -> Vec<i32> {
 }
 
 #[test]
-fn test_max_subarray_sum() {
-    assert_eq!(max_subarray(&vec![-2, -3, 4, -1, -2, 1, 5, -3]), vec![4, -1, -2, 1, 5]);
-    assert_eq!(max_subarray(&vec![-1, -2, 3, 5, -1, 2, -4, 2, -6]), vec![3, 5, -1, 2]);
-    assert_eq!(max_subarray(&vec![-2, 1, -3, 4, -1, 2, 1, -5, 4]), vec![4, -1, 2, 1]);
-    assert_eq!(max_subarray(&vec![8, -19, 5, -4, 20]), vec![5, -4, 20]);
+fn test_max_subarray_naive_sum() {
+    assert_eq!(max_subarray_naive(&vec![-2, -3, 4, -1, -2, 1, 5, -3]), vec![4, -1, -2, 1, 5]);
+    assert_eq!(max_subarray_naive(&vec![-1, -2, 3, 5, -1, 2, -4, 2, -6]), vec![3, 5, -1, 2]);
+    assert_eq!(max_subarray_naive(&vec![-2, 1, -3, 4, -1, 2, 1, -5, 4]), vec![4, -1, 2, 1]);
+    assert_eq!(max_subarray_naive(&vec![8, -19, 5, -4, 20]), vec![5, -4, 20]);
+}
+
+#[test]
+fn test_max_subarray_hopefully_better_sum() {
+    assert_eq!(max_subarray_kadane(&vec![-2, -3, 4, -1, -2, 1, 5, -3]), vec![4, -1, -2, 1, 5]);
+    assert_eq!(max_subarray_kadane(&vec![-1, -2, 3, 5, -1, 2, -4, 2, -6]), vec![3, 5, -1, 2]);
+    assert_eq!(max_subarray_kadane(&vec![-2, 1, -3, 4, -1, 2, 1, -5, 4]), vec![4, -1, 2, 1]);
+    assert_eq!(max_subarray_kadane(&vec![8, -19, 5, -4, 20]), vec![5, -4, 20]);
+    assert_eq!(max_subarray_kadane(&vec![-8, -19, -5, -4, -20]), vec![-4]);
+    assert_eq!(max_subarray_kadane(&vec![500, -19, -5, -4, -20]), vec![500]);
+    assert_eq!(max_subarray_kadane(&vec![18, -19, -5, -4, -20]), vec![18]);
+    assert_eq!(max_subarray_kadane(&vec![-4, 5, -4]), vec![5]);
 }
