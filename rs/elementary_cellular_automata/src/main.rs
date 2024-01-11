@@ -43,13 +43,13 @@ fn main() {
 
             let mut index = 0;
             if grid[start] {
-                index = index + 1;
+                index += 1;
             }
             if grid[mid] {
-                index = index + 2;
+                index += 2;
             }
             if grid[end] {
-                index = index + 4;
+                index += 4;
             }
             new_grid.push(rule_set[index]);
         }
@@ -69,9 +69,11 @@ fn main() {
                 .join(" ")
         );
 
-        for i in 0..new_grid.len() {
-            grid[i] = new_grid[i];
-        }
+        // for i in 0..new_grid.len() {
+        //     grid[i] = new_grid[i];
+        // }
+        // recommended per cargo clippy
+        grid[..new_grid.len()].copy_from_slice(&new_grid[..]);
         std::thread::sleep(Duration::from_millis(200));
     }
 }
