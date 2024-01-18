@@ -10,7 +10,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 // TODO aces having 'multiple' values of 1 OR 11 !!!
-// TODO split getting bet step from continuing to play step
 // TODO DOUBLE DOWN
 // TODO Split
 
@@ -51,9 +50,8 @@ fn main() {
             stdin()
                 .read_line(&mut player_action_buffer)
                 .expect("Error: failed to read input from stdin.");
-
-            player_action_buffer = player_action_buffer.trim().to_string();
-            match player_action_buffer.as_str() {
+            
+            match player_action_buffer.to_lowercase().trim() {
                 "e" => {
                     println!("Thanks for playing.");
                     std::process::exit(0);
@@ -121,7 +119,7 @@ fn play_hand(deck: &mut Vec<u8>, player_bet: i32) -> i32 {
             stdin()
                 .read_line(&mut player_action_buffer)
                 .expect("Error: failed to read player input from stdin.");
-            match player_action_buffer.trim().to_lowercase().as_str() {
+            match player_action_buffer.to_lowercase().trim() {
                 "h" => {
                     has_player_action = true;
 
@@ -324,8 +322,7 @@ fn load_player_profile_from_disk() -> PlayerProfile {
     let file = File::open(full_path).expect("Error: Player profile file not found.");
 
     let reader = BufReader::new(file);
-
-    // Deserialize the JSON data into `MyStruct`.
+    
     let player_data: PlayerProfile =
         serde_json::from_reader(reader).expect("Error: Failed to parse player profile data.");
 
