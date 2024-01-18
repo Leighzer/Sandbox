@@ -1,23 +1,15 @@
 use rand::seq::SliceRandom;
-use rand::thread_rng;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::fs::File;
 use std::io::stdin;
+use std::io::BufReader;
+use std::io::Result;
+use std::path::Path;
+use std::path::PathBuf;
 use std::time::Duration;
 
-// command line interface - for now we'll call the exe and play blackjack maybe with a certain balance ...(maybe save this to a file and pickup later?)...
-
-// start the game loop DONE
-// shuffle a deck of cards DONE
-// deal starting cards DONE
-// LATER check for blackjack - short circuit if dealer or player has blackjack + calc payouts
-// get player input - hit or stay DONE
-// no more player actions? evaluate hands - who wins DONE
-// update balance DONE
-// go back to the start of the loop DONE
-
-// MISC TODO keep a running deck between hands instead of refreshing the deck each time...
 // TODO aces having 'multiple' values of 1 OR 11 !!!
-// TODO read player balance from disk - maybe enter who is playing, and look for the file - save balance when they leave the table...
 // TODO split getting bet step from continuing to play step
 // TODO DOUBLE DOWN
 // TODO Split
@@ -26,69 +18,80 @@ use std::time::Duration;
 // Ace 1 OR 10 !!!
 // 2, 3, 4, 5, 6, 7, 8, 9, 10, J(10), Q(10), K(10)
 
+const PLAYER_STARTING_BALANCE: i32 = 500;
+
 fn main() {
     let mut is_game_running: bool = true;
 
-    let mut player_balance = 500; // TODO load from filesystem???
+    create_player_profile_if_not_exists();
+
+    let mut player_profile: PlayerProfile = load_player_profile_from_disk();
+
+    if player_profile.balance <= 0 {
+        println!(
+            "We see you are out of chips. Here, have {} chips on the house.",
+            PLAYER_STARTING_BALANCE
+        );
+        player_profile.balance = PLAYER_STARTING_BALANCE;
+        save_player_profile_to_disk(&player_profile);
+    }
+
     let mut player_action_buffer = String::new();
 
+    let mut deck: Vec<u8> = Vec::<u8>::new();
+
     while is_game_running {
-        println!("You now have {} chips.", player_balance);
-        println!(
-            "How much would you like to bet? Enter anything else if you would like to leave the table."
-        );
+        println!("You now have {} chips.", player_profile.balance);
+        println!("How much would you like to bet? (e)xit if you would like to leave the table.");
 
         let mut player_bet = 0;
         let mut has_player_bet = false;
 
         while !has_player_bet {
-            let _ = stdin().read_line(&mut player_action_buffer);
+            stdin()
+                .read_line(&mut player_action_buffer)
+                .expect("Error: failed to read input from stdin.");
 
-            match player_action_buffer.trim().parse::<i32>() {
-                Ok(integer) => {
-                    if integer > player_balance {
-                        println!(
-                            "You can only bet up to your balance {}. Please enter your bet again.",
-                            player_balance
-                        );
-                    } else {
-                        player_bet = integer;
-                        has_player_bet = true;
-                    }
-                }
-                Err(_) => {
+            player_action_buffer = player_action_buffer.trim().to_string();
+            match player_action_buffer.as_str() {
+                "e" => {
                     println!("Thanks for playing.");
                     std::process::exit(0);
                 }
+                val => match val.parse::<i32>() {
+                    Ok(integer) => {
+                        if integer > player_profile.balance {
+                            println!(
+                                    "You can only bet up to your balance {}. Please enter your bet again.",
+                                    player_profile.balance
+                                );
+                        } else if integer <= 0 {
+                            println!("You must bet at least 1 chip to play.");
+                        } else {
+                            player_bet = integer;
+                            has_player_bet = true;
+                        }
+                    }
+                    Err(_) => {
+                        println!("Invalid input. Please enter your bet or (e)xit the table.");
+                    }
+                },
             }
             player_action_buffer = String::new();
         }
 
-        player_balance += play_hand(player_bet);
+        player_profile.balance += play_hand(&mut deck, player_bet);
 
-        if player_balance <= 0 {
+        save_player_profile_to_disk(&player_profile);
+
+        if player_profile.balance <= 0 {
             println!("You are broke. You have been kicked out of the casino.");
             is_game_running = false;
         }
     }
 }
 
-fn play_hand(player_bet: i32) -> i32 {
-    let mut deck: Vec<u8> = Vec::<u8>::new();
-
-    for _ in 0..4 {
-        for j in 1..=13 {
-            if j > 10 {
-                deck.push(10);
-            } else {
-                deck.push(j);
-            }
-        }
-    }
-
-    // shuffle the deck
-    deck.shuffle(&mut thread_rng());
-
+fn play_hand(deck: &mut Vec<u8>, player_bet: i32) -> i32 {
     let mut dealer_hand: Vec<u8> = Vec::<u8>::new();
     let mut player_hand: Vec<u8> = Vec::<u8>::new();
 
@@ -96,11 +99,11 @@ fn play_hand(player_bet: i32) -> i32 {
 
     let mut game_outcome: Option<GameOutcomes> = None;
 
-    deal_from_deck(&mut deck, &mut player_hand);
-    deal_from_deck(&mut deck, &mut dealer_hand);
+    deal_from_deck(deck, &mut player_hand);
+    deal_from_deck(deck, &mut dealer_hand);
 
-    deal_from_deck(&mut deck, &mut player_hand);
-    deal_from_deck(&mut deck, &mut dealer_hand);
+    deal_from_deck(deck, &mut player_hand);
+    deal_from_deck(deck, &mut dealer_hand);
 
     // TODO check for blackjack
     // check for blackjack here for dealer
@@ -113,18 +116,17 @@ fn play_hand(player_bet: i32) -> i32 {
     while !is_player_hand_done {
         println!("(h)it or (s)tay?");
 
-        // do this a better way
-        // in a while loop - complain about bad user input until we get good input
-        // TODO double down???
         let mut has_player_action = false;
         while !has_player_action {
-            let _ = stdin().read_line(&mut player_action_buffer);
+            stdin()
+                .read_line(&mut player_action_buffer)
+                .expect("Error: failed to read player input from stdin.");
             match player_action_buffer.trim().to_lowercase().as_str() {
                 "h" => {
                     has_player_action = true;
 
                     println!("You decided to hit!");
-                    deal_from_deck(&mut deck, &mut player_hand);
+                    deal_from_deck(deck, &mut player_hand);
                     let player_hand_sum: u8 = player_hand.iter().sum();
 
                     if player_hand_sum > 21 {
@@ -160,7 +162,7 @@ fn play_hand(player_bet: i32) -> i32 {
             if dealer_hand_sum < 17 {
                 // dealer hit
                 println!("Dealer hits!");
-                deal_from_deck(&mut deck, &mut dealer_hand);
+                deal_from_deck(deck, &mut dealer_hand);
 
                 let mut dealer_hand_sum = 0;
                 for i in &dealer_hand {
@@ -230,9 +232,27 @@ fn play_hand(player_bet: i32) -> i32 {
 }
 
 fn deal_from_deck(deck: &mut Vec<u8>, hand: &mut Vec<u8>) {
+    if deck.is_empty() {
+        shuffle_new_deck(deck);
+    }
+
     let card = deck.remove(deck.len() - 1);
 
     hand.push(card);
+}
+
+fn shuffle_new_deck(deck: &mut Vec<u8>) {
+    for _ in 0..4 {
+        for j in 1..=13 {
+            if j > 10 {
+                deck.push(10);
+            } else {
+                deck.push(j);
+            }
+        }
+    }
+
+    deck.shuffle(&mut rand::thread_rng());
 }
 
 // TODO - perhaps we have multiple player hands
@@ -271,4 +291,65 @@ enum GameOutcomes {
     PlayerWin,
     Draw,
     PlayerLost,
+}
+
+fn get_player_profile_path_buf() -> PathBuf {
+    let exe_path =
+        std::env::current_exe().expect("Error: Failed to get the current executable path.");
+    let exe_dir = exe_path
+        .parent()
+        .expect("Error: Failed to get directory of the current executable.");
+    let file_name = "player_profile.json";
+    let full_path = exe_dir.join(file_name);
+
+    full_path
+}
+
+fn create_player_profile_if_not_exists() {
+    let full_path = get_player_profile_path_buf();
+
+    if !full_path.exists() {
+        println!(
+            "We see you are a new player! We are starting your account with {} chips.",
+            PLAYER_STARTING_BALANCE
+        );
+        save_player_profile_to_disk(&PlayerProfile { balance: 500 })
+    }
+}
+
+fn load_player_profile_from_disk() -> PlayerProfile {
+    let full_path = get_player_profile_path_buf();
+
+    // Open the file in read-only mode.
+    let file = File::open(full_path).expect("Error: Player profile file not found.");
+
+    let reader = BufReader::new(file);
+
+    // Deserialize the JSON data into `MyStruct`.
+    let player_data: PlayerProfile =
+        serde_json::from_reader(reader).expect("Error: Failed to parse player profile data.");
+
+    player_data
+}
+
+fn save_player_profile_to_disk(player_profile: &PlayerProfile) {
+    let full_path = get_player_profile_path_buf();
+    let file = File::create(&full_path).unwrap_or_else(|_| {
+        panic!(
+            "Error: Failed to create player profile file at {}",
+            full_path.display()
+        )
+    });
+    serde_json::to_writer(file, player_profile).expect("Error: Failed to save player profile.");
+}
+
+// fn read_line_from_stdin() -> std::io::Result<String> {
+//     let mut input = String::new();
+//     std::io::stdin().read_line(&mut input)?;
+//     Ok(input.trim().to_string())
+// }
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PlayerProfile {
+    pub balance: i32,
 }
