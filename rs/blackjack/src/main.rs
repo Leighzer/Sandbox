@@ -9,13 +9,12 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
-// TODO aces having 'multiple' values of 1 OR 11 !!!
+// Blackjack shortout round if player or dealer hits blackjack
 // TODO DOUBLE DOWN
-// TODO Split
+// TODO Split - probably add support for players having multiple hands
 
 // Cards
-// Ace 1 OR 10 !!!
-// 2, 3, 4, 5, 6, 7, 8, 9, 10, J(10), Q(10), K(10)
+// 1(or 11) 2, 3, 4, 5, 6, 7, 8, 9, 10, J(10), Q(10), K(10)
 
 const PLAYER_STARTING_BALANCE: i32 = 500;
 
@@ -50,7 +49,7 @@ fn main() {
             stdin()
                 .read_line(&mut player_action_buffer)
                 .expect("Error: failed to read input from stdin.");
-            
+
             match player_action_buffer.to_lowercase().trim() {
                 "e" => {
                     println!("Thanks for playing.");
@@ -125,7 +124,7 @@ fn play_hand(deck: &mut Vec<u8>, player_bet: i32) -> i32 {
 
                     println!("You decided to hit!");
                     deal_from_deck(deck, &mut player_hand);
-                    let player_hand_sum: u8 = player_hand.iter().sum();
+                    let player_hand_sum: u8 = get_hand_sum(&player_hand);
 
                     if player_hand_sum > 21 {
                         println!("Sorry you have busted!");
@@ -155,7 +154,7 @@ fn play_hand(deck: &mut Vec<u8>, player_bet: i32) -> i32 {
 
         let mut is_dealer_hand_done = false;
         while !is_dealer_hand_done {
-            let dealer_hand_sum: u8 = dealer_hand.iter().sum();
+            let dealer_hand_sum: u8 = get_hand_sum(&dealer_hand);
 
             if dealer_hand_sum < 17 {
                 // dealer hit
@@ -185,9 +184,9 @@ fn play_hand(deck: &mut Vec<u8>, player_bet: i32) -> i32 {
     // if there is not already a winner from earlier
     // compare hands
     if game_outcome.is_none() {
-        let player_hand_sum: u8 = player_hand.iter().sum();
+        let player_hand_sum: u8 = get_hand_sum(&player_hand);
 
-        let dealer_hand_sum = dealer_hand.iter().sum();
+        let dealer_hand_sum = get_hand_sum(&dealer_hand);
 
         println!("Dealer has {}", dealer_hand_sum);
         println!("Player has {}", player_hand_sum);
@@ -322,7 +321,7 @@ fn load_player_profile_from_disk() -> PlayerProfile {
     let file = File::open(full_path).expect("Error: Player profile file not found.");
 
     let reader = BufReader::new(file);
-    
+
     let player_data: PlayerProfile =
         serde_json::from_reader(reader).expect("Error: Failed to parse player profile data.");
 
@@ -340,6 +339,22 @@ fn save_player_profile_to_disk(player_profile: &PlayerProfile) {
     serde_json::to_writer(file, player_profile).expect("Error: Failed to save player profile.");
 }
 
+fn get_hand_sum(hand: &Vec<u8>) -> u8 {
+    let min_sum: u8 = hand.iter().sum();
+
+    let number_of_aces = hand.iter().filter(|&&x| x == 1_u8).count() as u8;
+
+    let max_ace_10_padding = (21_u8.saturating_sub(min_sum)) / 10_u8; // max amount of 10s we can add without going over 21
+
+    // compare what aces we have to the ideal amount of padding to be added
+    // make sure we add the best amount we can considering how much aces we have
+    let ace_adjustment = std::cmp::min(number_of_aces, max_ace_10_padding);
+
+    let hand_value = min_sum + (ace_adjustment * 10);
+
+    hand_value
+}
+
 // fn read_line_from_stdin() -> std::io::Result<String> {
 //     let mut input = String::new();
 //     std::io::stdin().read_line(&mut input)?;
@@ -349,4 +364,29 @@ fn save_player_profile_to_disk(player_profile: &PlayerProfile) {
 #[derive(Debug, Serialize, Deserialize)]
 struct PlayerProfile {
     pub balance: i32,
+}
+
+#[test]
+fn test_get_hand_sum() {
+    assert_eq!(get_hand_sum(&vec![10, 10]), 20);
+    assert_eq!(get_hand_sum(&vec![10, 10, 10]), 30);
+    assert_eq!(get_hand_sum(&vec![5, 6]), 11);
+    assert_eq!(get_hand_sum(&vec![6, 10]), 16);
+    assert_eq!(get_hand_sum(&vec![1, 10]), 21);
+    assert_eq!(get_hand_sum(&vec![4, 5]), 9);
+    assert_eq!(get_hand_sum(&vec![4, 5, 1]), 20);
+    assert_eq!(get_hand_sum(&vec![4, 5, 1, 1]), 21);
+    assert_eq!(get_hand_sum(&vec![4, 5, 1, 1, 1]), 12);
+    assert_eq!(get_hand_sum(&vec![10, 10, 1]), 21);
+    assert_eq!(get_hand_sum(&vec![10, 8]), 18);
+    assert_eq!(get_hand_sum(&vec![10, 8, 1]), 19);
+    assert_eq!(get_hand_sum(&vec![10, 8, 1, 1]), 20);
+    assert_eq!(get_hand_sum(&vec![]), 0);
+    assert_eq!(get_hand_sum(&vec![1]), 11);
+    assert_eq!(get_hand_sum(&vec![1, 1]), 12);
+    assert_eq!(get_hand_sum(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1]), 19);
+    assert_eq!(get_hand_sum(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]), 20);
+    assert_eq!(get_hand_sum(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]), 21);
+    assert_eq!(get_hand_sum(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]), 12);
+    assert_eq!(get_hand_sum(&vec![4]), 4);
 }
