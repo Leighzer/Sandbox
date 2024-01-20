@@ -182,7 +182,7 @@ fn play_hand(deck: &mut Vec<u8>, player_profile: &PlayerProfile, initial_player_
                             previous_player_actions.push(PlayerAction::DoubleDown);
                             has_player_action = true;
 
-                            player_bet = player_bet * 2;
+                            player_bet *= 2;
                             println!(
                                 "You decided to double down! Your bet is now {}!",
                                 player_bet
@@ -211,10 +211,10 @@ fn play_hand(deck: &mut Vec<u8>, player_profile: &PlayerProfile, initial_player_
                     }
                 }
                 player_action_buffer = String::new();
+                available_player_actions = get_player_actions(player_profile.balance, player_bet, &player_hand, &previous_player_actions);
             }
 
             print_hands(&dealer_hand, &player_hand, true);
-            player_action_buffer = String::new();
         }
     }
 
@@ -369,7 +369,7 @@ fn get_player_actions(
     player_balance: i32,
     player_bet: i32,
     player_hand: &Vec<u8>,
-    previous_player_actions: &Vec<PlayerAction>,
+    previous_player_actions: &[PlayerAction],
 ) -> Vec<PlayerAction> {
     let mut player_actions = vec![PlayerAction::Hit, PlayerAction::Stay];
 
@@ -386,7 +386,7 @@ fn get_player_actions(
     player_actions
 }
 
-fn print_player_actions(player_actions: &Vec<PlayerAction>) {
+fn print_player_actions(player_actions: &[PlayerAction]) {
     let player_actions_string_output = player_actions
         .iter()
         .map(|action| match action {
@@ -425,6 +425,7 @@ fn get_player_profile_path_buf() -> PathBuf {
     let file_name = "player_profile.json";
     let full_path = exe_dir.join(file_name);
 
+    #[allow(clippy::let_and_return)]
     full_path
 }
 
@@ -465,7 +466,7 @@ fn save_player_profile_to_disk(player_profile: &PlayerProfile) {
     serde_json::to_writer(file, player_profile).expect("Error: Failed to save player profile.");
 }
 
-fn get_hand_sum(hand: &Vec<u8>) -> u8 {
+fn get_hand_sum(hand: &[u8]) -> u8 {
     let min_sum: u8 = hand.iter().sum();
 
     let number_of_aces = hand.iter().filter(|&&x| x == 1_u8).count() as u8;
@@ -476,6 +477,7 @@ fn get_hand_sum(hand: &Vec<u8>) -> u8 {
     // make sure we add the best amount we can considering how much aces we have
     let ace_adjustment = std::cmp::min(number_of_aces, max_ace_10_padding);
 
+    #[allow(clippy::let_and_return)]
     let hand_value = min_sum + (ace_adjustment * 10);
 
     hand_value
