@@ -4,13 +4,10 @@ use std::cmp::Ordering;
 use std::fs::File;
 use std::io::stdin;
 use std::io::BufReader;
-use std::io::Result;
-use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
-// Blackjack shortout round if player or dealer hits blackjack
-// TODO DOUBLE DOWN
+// TODO dealer blackjack insurance.. maybe
 // TODO Split - probably add support for players having multiple hands
 
 // Cards
@@ -77,7 +74,7 @@ fn main() {
             player_action_buffer = String::new();
         }
 
-        player_profile.balance += play_hand(&mut deck, player_bet);
+        player_profile.balance += play_hand(&mut deck, &player_profile, player_bet);
 
         save_player_profile_to_disk(&player_profile);
 
@@ -88,13 +85,16 @@ fn main() {
     }
 }
 
-fn play_hand(deck: &mut Vec<u8>, player_bet: i32) -> i32 {
+fn play_hand(deck: &mut Vec<u8>, player_profile: &PlayerProfile, initial_player_bet: i32) -> i32 {
+    let mut player_bet = initial_player_bet;
     let mut dealer_hand: Vec<u8> = Vec::<u8>::new();
     let mut player_hand: Vec<u8> = Vec::<u8>::new();
 
+    let mut previous_player_actions: Vec<PlayerAction> = vec![];
+
     let mut player_action_buffer = String::new();
 
-    let mut game_outcome: Option<GameOutcomes> = None;
+    let mut game_outcome: Option<GameOutcome> = None;
 
     deal_from_deck(deck, &mut player_hand);
     deal_from_deck(deck, &mut dealer_hand);
@@ -102,51 +102,120 @@ fn play_hand(deck: &mut Vec<u8>, player_bet: i32) -> i32 {
     deal_from_deck(deck, &mut player_hand);
     deal_from_deck(deck, &mut dealer_hand);
 
-    // TODO check for blackjack
-    // check for blackjack here for dealer
-    // check for player blackjacks...
+    let mut available_player_actions: Vec<PlayerAction> = get_player_actions(
+        player_profile.balance,
+        initial_player_bet,
+        &player_hand,
+        &previous_player_actions,
+    );
 
-    print_hands(&dealer_hand, &player_hand, true);
+    let is_player_blackjack = get_hand_sum(&player_hand) == 21;
+    let is_dealer_blackjack = get_hand_sum(&dealer_hand) == 21;
+    if is_player_blackjack && is_dealer_blackjack {
+        println!("You and the dealer hit blackjack!");
+        game_outcome = Some(GameOutcome::Draw);
+    } else if is_player_blackjack {
+        println!("You hit blackjack!");
+        game_outcome = Some(GameOutcome::PlayerWinBlackjack);
+    } else if is_dealer_blackjack {
+        println!("The dealer hit blackjack!");
+        game_outcome = Some(GameOutcome::PlayerLost);
+    }
 
-    // player action loop until they are done with hand
-    let mut is_player_hand_done = false;
-    while !is_player_hand_done {
-        println!("(h)it or (s)tay?");
+    // show blackjack hands
+    if game_outcome.is_some() {
+        print_hands(&dealer_hand, &player_hand, false);
+    }
 
-        let mut has_player_action = false;
-        while !has_player_action {
-            stdin()
-                .read_line(&mut player_action_buffer)
-                .expect("Error: failed to read player input from stdin.");
-            match player_action_buffer.to_lowercase().trim() {
-                "h" => {
-                    has_player_action = true;
+    if game_outcome.is_none() {
+        print_hands(&dealer_hand, &player_hand, true);
 
-                    println!("You decided to hit!");
-                    deal_from_deck(deck, &mut player_hand);
-                    let player_hand_sum: u8 = get_hand_sum(&player_hand);
+        // player action loop until they are done with hand
+        let mut is_player_hand_done = false;
+        while !is_player_hand_done {
+            print_player_actions(&available_player_actions);
 
-                    if player_hand_sum > 21 {
-                        println!("Sorry you have busted!");
-                        is_player_hand_done = true;
-                        game_outcome = Some(GameOutcomes::PlayerLost);
+            let mut has_player_action = false;
+            while !has_player_action {
+                stdin()
+                    .read_line(&mut player_action_buffer)
+                    .expect("Error: failed to read player input from stdin.");
+                match player_action_buffer.to_lowercase().trim() {
+                    "h" => {
+                        if !available_player_actions.contains(&PlayerAction::Hit) {
+                            println!("You cannot hit at this time. Please enter a valid option.");
+                            print_player_actions(&available_player_actions);
+                        } else {
+                            previous_player_actions.push(PlayerAction::Hit);
+                            has_player_action = true;
+
+                            println!("You decided to hit!");
+                            deal_from_deck(deck, &mut player_hand);
+                            let player_hand_sum: u8 = get_hand_sum(&player_hand);
+
+                            if player_hand_sum > 21 {
+                                println!("Sorry you have busted!");
+                                is_player_hand_done = true;
+                                game_outcome = Some(GameOutcome::PlayerLost);
+                            }
+                        }
+                    }
+                    "s" => {
+                        if !available_player_actions.contains(&PlayerAction::Stay) {
+                            println!("You cannot stay at this time. Please enter a valid option.");
+                            print_player_actions(&available_player_actions);
+                        } else {
+                            previous_player_actions.push(PlayerAction::Stay);
+                            has_player_action = true;
+
+                            println!("You decided to stay!");
+                            is_player_hand_done = true;
+                        }
+                    }
+                    "d" => {
+                        if !available_player_actions.contains(&PlayerAction::DoubleDown) {
+                            println!(
+                                "You cannot double down at this time. Please enter a valid option."
+                            );
+                            print_player_actions(&available_player_actions);
+                        } else {
+                            previous_player_actions.push(PlayerAction::DoubleDown);
+                            has_player_action = true;
+
+                            player_bet = player_bet * 2;
+                            println!(
+                                "You decided to double down! Your bet is now {}!",
+                                player_bet
+                            );
+                            deal_from_deck(deck, &mut player_hand);
+                            let player_hand_sum: u8 = get_hand_sum(&player_hand);
+                            if player_hand_sum > 21 {
+                                println!("Sorry you have busted!");
+                                game_outcome = Some(GameOutcome::PlayerLost);
+                            }
+
+                            is_player_hand_done = true;
+                        }
+                    }
+                    "p" => {
+                        if !available_player_actions.contains(&PlayerAction::Split) {
+                            println!("You cannot split at this time. Please enter a valid option.");
+                            print_player_actions(&available_player_actions);
+                        } else {
+                            // TODO do split stuff here
+                        }
+                    }
+                    _ => {
+                        println!("Please enter a valid option.");
+                        print_player_actions(&available_player_actions);
                     }
                 }
-                "s" => {
-                    has_player_action = true;
-
-                    println!("You decided to stay!");
-                    is_player_hand_done = true;
-                }
-                _ => {
-                    println!("Please enter a valid option. (h)it or (s)tay.");
-                }
+                player_action_buffer = String::new();
             }
+
+            print_hands(&dealer_hand, &player_hand, true);
             player_action_buffer = String::new();
         }
-
-        print_hands(&dealer_hand, &player_hand, true);
-        player_action_buffer = String::new();
     }
 
     if game_outcome.is_none() {
@@ -169,7 +238,7 @@ fn play_hand(deck: &mut Vec<u8>, player_bet: i32) -> i32 {
                 if dealer_hand_sum > 21 {
                     println!("Dealer has busted!");
                     is_dealer_hand_done = true;
-                    game_outcome = Some(GameOutcomes::PlayerWin);
+                    game_outcome = Some(GameOutcome::PlayerWin);
                 }
             } else {
                 // dealer stay
@@ -193,31 +262,37 @@ fn play_hand(deck: &mut Vec<u8>, player_bet: i32) -> i32 {
 
         match player_hand_sum.cmp(&dealer_hand_sum) {
             Ordering::Equal => {
-                game_outcome = Some(GameOutcomes::Draw);
+                game_outcome = Some(GameOutcome::Draw);
             }
             Ordering::Greater => {
-                game_outcome = Some(GameOutcomes::PlayerWin);
+                game_outcome = Some(GameOutcome::PlayerWin);
             }
             Ordering::Less => {
                 // if player_hand > dealer_hand
-                game_outcome = Some(GameOutcomes::PlayerLost);
+                game_outcome = Some(GameOutcome::PlayerLost);
             }
         }
     }
 
     // end of hand logic - return bet to update balance
     match game_outcome {
-        Some(GameOutcomes::PlayerWin) => {
+        Some(GameOutcome::PlayerWin) => {
             println!("You won {}!", player_bet);
 
             player_bet
         }
-        Some(GameOutcomes::PlayerLost) => {
+        Some(GameOutcome::PlayerWinBlackjack) => {
+            let player_bet_blackjack = (player_bet as f32 * 1.5) as i32;
+            println!("You won {}!", player_bet_blackjack);
+
+            player_bet_blackjack
+        }
+        Some(GameOutcome::PlayerLost) => {
             println!("You lost {}!", player_bet);
 
             -player_bet
         }
-        Some(GameOutcomes::Draw) => {
+        Some(GameOutcome::Draw) => {
             println!("Push! no change!");
 
             0
@@ -284,8 +359,59 @@ fn print_hand(player_name: &str, hand: &Vec<u8>, hide_first_card: bool) {
     println!("{}: {}", player_name, hand_string);
 }
 
-enum GameOutcomes {
+fn all_elements_equal<T: PartialEq>(vec: &[T]) -> bool {
+    vec.first()
+        .map(|first| vec.iter().all(|x| x == first))
+        .unwrap_or(true)
+}
+
+fn get_player_actions(
+    player_balance: i32,
+    player_bet: i32,
+    player_hand: &Vec<u8>,
+    previous_player_actions: &Vec<PlayerAction>,
+) -> Vec<PlayerAction> {
+    let mut player_actions = vec![PlayerAction::Hit, PlayerAction::Stay];
+
+    if player_bet * 2 <= player_balance
+        && !previous_player_actions.contains(&PlayerAction::DoubleDown)
+    {
+        player_actions.push(PlayerAction::DoubleDown);
+    }
+
+    if player_hand.len() == 2 && all_elements_equal(player_hand) {
+        //player_actions.push(PlayerAction::Split);
+    }
+
+    player_actions
+}
+
+fn print_player_actions(player_actions: &Vec<PlayerAction>) {
+    let player_actions_string_output = player_actions
+        .iter()
+        .map(|action| match action {
+            PlayerAction::Hit => "(h)it",
+            PlayerAction::Stay => "(s)tay",
+            PlayerAction::DoubleDown => "(d)ouble down",
+            PlayerAction::Split => "s(p)lit",
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    println!("{}", player_actions_string_output)
+}
+
+#[derive(Debug, PartialEq)]
+enum PlayerAction {
+    Hit,
+    Stay,
+    DoubleDown,
+    Split,
+}
+
+enum GameOutcome {
     PlayerWin,
+    PlayerWinBlackjack,
     Draw,
     PlayerLost,
 }
