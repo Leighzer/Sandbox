@@ -7,8 +7,8 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::time::Duration;
 
-// TODO dealer blackjack insurance.. maybe
 // TODO Split - probably add support for players having multiple hands
+// TODO dealer blackjack insurance.. maybe
 
 // Cards
 // 1(or 11) 2, 3, 4, 5, 6, 7, 8, 9, 10, J(10), Q(10), K(10)
@@ -74,7 +74,7 @@ fn main() {
             player_action_buffer = String::new();
         }
 
-        player_profile.balance += play_hand(&mut deck, &player_profile, player_bet);
+        player_profile.balance += play_round(&mut deck, player_profile.balance, player_bet);
 
         save_player_profile_to_disk(&player_profile);
 
@@ -85,55 +85,79 @@ fn main() {
     }
 }
 
-fn play_hand(deck: &mut Vec<u8>, player_profile: &PlayerProfile, initial_player_bet: i32) -> i32 {
-    let mut player_bet = initial_player_bet;
-    let mut dealer_hand: Vec<u8> = Vec::<u8>::new();
-    let mut player_hand: Vec<u8> = Vec::<u8>::new();
+fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_bet: i32) -> i32 {
+    let mut player = Player {
+        hands: vec![Hand {
+            cards: vec![],
+            bet: initial_player_bet,
+            payout: None,
+            is_complete_taking_actions: false,
+            avaiable_actions: vec![],
+            actions_taken: vec![],
+            is_starting_hand: true,
+        }],
+    };
 
-    let mut previous_player_actions: Vec<PlayerAction> = vec![];
+    let mut player_working_balance = initial_player_balance - initial_player_bet;
+
+    let mut dealer_hand: Vec<u8> = Vec::<u8>::new();
 
     let mut player_action_buffer = String::new();
 
-    let mut game_outcome: Option<GameOutcome> = None;
+    for hand in &mut player.hands {
+        deal_from_deck(deck, hand);
+    }
+    deal_from_deck_legacy(deck, &mut dealer_hand);
 
-    deal_from_deck(deck, &mut player_hand);
-    deal_from_deck(deck, &mut dealer_hand);
+    for hand in &mut player.hands {
+        deal_from_deck(deck, hand);
+        hand.avaiable_actions = get_player_actions(player_working_balance, hand);
+    }
+    deal_from_deck_legacy(deck, &mut dealer_hand);
 
-    deal_from_deck(deck, &mut player_hand);
-    deal_from_deck(deck, &mut dealer_hand);
-
-    let mut available_player_actions: Vec<PlayerAction> = get_player_actions(
-        player_profile.balance,
-        initial_player_bet,
-        &player_hand,
-        &previous_player_actions,
-    );
-
-    let is_player_blackjack = get_hand_sum(&player_hand) == 21;
-    let is_dealer_blackjack = get_hand_sum(&dealer_hand) == 21;
-    if is_player_blackjack && is_dealer_blackjack {
-        println!("You and the dealer hit blackjack!");
-        game_outcome = Some(GameOutcome::Draw);
-    } else if is_player_blackjack {
-        println!("You hit blackjack!");
-        game_outcome = Some(GameOutcome::PlayerWinBlackjack);
-    } else if is_dealer_blackjack {
-        println!("The dealer hit blackjack!");
-        game_outcome = Some(GameOutcome::PlayerLost);
+    let is_dealer_blackjack = get_hand_sum_legacy(&dealer_hand) == 21;
+    for hand in &mut player.hands {
+        let is_hand_blackjack = get_hand_sum(hand) == 21;
+        if is_hand_blackjack && is_dealer_blackjack {
+            println!("You and the dealer hit blackjack!");
+            hand.is_complete_taking_actions = true;
+            hand.payout = Some(0);
+        } else if is_hand_blackjack {
+            println!("You hit blackjack!");
+            hand.is_complete_taking_actions = true;
+            hand.payout = Some((hand.bet as f32 * 1.5) as i32);
+        } else if is_dealer_blackjack {
+            println!("The dealer hit blackjack!");
+            hand.is_complete_taking_actions = true;
+            hand.payout = Some(-hand.bet);
+        }
     }
 
     // show blackjack hands
-    if game_outcome.is_some() {
-        print_hands(&dealer_hand, &player_hand, false);
+    // if game_outcome.is_some() {
+    //     print_hands(&dealer_hand, &player_hand, false);
+    // }
+
+    print_hand_legacy("Dealer", &dealer_hand, true);
+    for hand in &player.hands {
+        print_hand("Player", hand, false);
     }
 
-    if game_outcome.is_none() {
-        print_hands(&dealer_hand, &player_hand, true);
+    // play out all hands here
+    while !player
+        .hands
+        .iter()
+        .all(|hand| hand.is_complete_taking_actions)
+    {
+        let first_incomplete_hand_index: usize = player
+            .hands
+            .iter_mut()
+            .position(|hand| !hand.is_complete_taking_actions)
+            .unwrap();
 
         // player action loop until they are done with hand
-        let mut is_player_hand_done = false;
-        while !is_player_hand_done {
-            print_player_actions(&available_player_actions);
+        while !player.hands[first_incomplete_hand_index].is_complete_taking_actions {
+            print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
 
             let mut has_player_action = false;
             while !has_player_action {
@@ -142,93 +166,131 @@ fn play_hand(deck: &mut Vec<u8>, player_profile: &PlayerProfile, initial_player_
                     .expect("Error: failed to read player input from stdin.");
                 match player_action_buffer.to_lowercase().trim() {
                     "h" => {
-                        if !available_player_actions.contains(&PlayerAction::Hit) {
+                        if !player.hands[first_incomplete_hand_index]
+                            .avaiable_actions
+                            .contains(&PlayerAction::Hit)
+                        {
                             println!("You cannot hit at this time. Please enter a valid option.");
-                            print_player_actions(&available_player_actions);
+                            print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
                         } else {
-                            previous_player_actions.push(PlayerAction::Hit);
+                            player.hands[first_incomplete_hand_index].actions_taken.push(PlayerAction::Hit);
                             has_player_action = true;
 
                             println!("You decided to hit!");
-                            deal_from_deck(deck, &mut player_hand);
-                            let player_hand_sum: u8 = get_hand_sum(&player_hand);
+                            deal_from_deck(deck, &mut player.hands[first_incomplete_hand_index]);
+                            let player_hand_sum: u8 = get_hand_sum(&player.hands[first_incomplete_hand_index]);
 
                             if player_hand_sum > 21 {
                                 println!("Sorry you have busted!");
-                                is_player_hand_done = true;
-                                game_outcome = Some(GameOutcome::PlayerLost);
+                                player.hands[first_incomplete_hand_index].is_complete_taking_actions = true;
+                                player.hands[first_incomplete_hand_index].payout = Some(-player.hands[first_incomplete_hand_index].bet);
                             }
                         }
                     }
                     "s" => {
-                        if !available_player_actions.contains(&PlayerAction::Stay) {
+                        if !player.hands[first_incomplete_hand_index]
+                            .avaiable_actions
+                            .contains(&PlayerAction::Stay)
+                        {
                             println!("You cannot stay at this time. Please enter a valid option.");
-                            print_player_actions(&available_player_actions);
+                            print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
                         } else {
-                            previous_player_actions.push(PlayerAction::Stay);
+                            player.hands[first_incomplete_hand_index].actions_taken.push(PlayerAction::Stay);
                             has_player_action = true;
 
                             println!("You decided to stay!");
-                            is_player_hand_done = true;
+                            player.hands[first_incomplete_hand_index].is_complete_taking_actions = true;
                         }
                     }
                     "d" => {
-                        if !available_player_actions.contains(&PlayerAction::DoubleDown) {
+                        if !player.hands[first_incomplete_hand_index]
+                            .avaiable_actions
+                            .contains(&PlayerAction::DoubleDown)
+                        {
                             println!(
                                 "You cannot double down at this time. Please enter a valid option."
                             );
-                            print_player_actions(&available_player_actions);
+                            print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
                         } else {
-                            previous_player_actions.push(PlayerAction::DoubleDown);
+                            player.hands[first_incomplete_hand_index]
+                                .actions_taken
+                                .push(PlayerAction::DoubleDown);
                             has_player_action = true;
 
-                            player_bet *= 2;
+                            player_working_balance -= player.hands[first_incomplete_hand_index].bet;
+                            player.hands[first_incomplete_hand_index].bet *= 2;
                             println!(
                                 "You decided to double down! Your bet is now {}!",
-                                player_bet
+                                player.hands[first_incomplete_hand_index].bet
                             );
-                            deal_from_deck(deck, &mut player_hand);
-                            let player_hand_sum: u8 = get_hand_sum(&player_hand);
+                            deal_from_deck(deck, &mut player.hands[first_incomplete_hand_index]);
+                            let player_hand_sum: u8 = get_hand_sum(&player.hands[first_incomplete_hand_index]);
                             if player_hand_sum > 21 {
                                 println!("Sorry you have busted!");
-                                game_outcome = Some(GameOutcome::PlayerLost);
+                                player.hands[first_incomplete_hand_index].payout = Some(-player.hands[first_incomplete_hand_index].bet);
                             }
 
-                            is_player_hand_done = true;
+                            player.hands[first_incomplete_hand_index].is_complete_taking_actions = true;
                         }
                     }
                     "p" => {
-                        if !available_player_actions.contains(&PlayerAction::Split) {
+                        if !player.hands[first_incomplete_hand_index]
+                            .avaiable_actions
+                            .contains(&PlayerAction::Split)
+                        {
                             println!("You cannot split at this time. Please enter a valid option.");
-                            print_player_actions(&available_player_actions);
+                            print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
                         } else {
-                            // TODO do split stuff here
+                            player.hands[first_incomplete_hand_index]
+                                .actions_taken
+                                .push(PlayerAction::Split);
+                            has_player_action = true;
+
+                            player.hands[first_incomplete_hand_index].cards.remove(0);
+
+                            deal_from_deck(deck, &mut player.hands[first_incomplete_hand_index]);
+
+                            let mut new_hand = Hand {
+                                cards: vec![player.hands[first_incomplete_hand_index].cards[0]],
+                                bet: player.hands[first_incomplete_hand_index].bet,
+                                payout: None,
+                                is_complete_taking_actions: false,
+                                avaiable_actions: vec![],
+                                actions_taken: vec![],
+                                is_starting_hand: false,
+                            };
+                            deal_from_deck(deck, &mut new_hand);
+                            new_hand.avaiable_actions =
+                                get_player_actions(player_working_balance, &mut new_hand);
+                            player.hands.push(new_hand);
                         }
                     }
                     _ => {
                         println!("Please enter a valid option.");
-                        print_player_actions(&available_player_actions);
+                        print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
                     }
                 }
                 player_action_buffer = String::new();
-                available_player_actions = get_player_actions(player_profile.balance, player_bet, &player_hand, &previous_player_actions);
+                player.hands[first_incomplete_hand_index].avaiable_actions =
+                    get_player_actions(player_working_balance, &player.hands[first_incomplete_hand_index]);
+                print_hands(&dealer_hand, &player, true);
             }
-
-            print_hands(&dealer_hand, &player_hand, true);
         }
     }
 
-    if game_outcome.is_none() {
+    // if we need to play out the dealer hand to pay out remaining hands
+    if !player.hands.iter().all(|hand| hand.payout.is_some()) {
         println!("Dealer hand starts!");
 
         let mut is_dealer_hand_done = false;
         while !is_dealer_hand_done {
-            let dealer_hand_sum: u8 = get_hand_sum(&dealer_hand);
+            let dealer_hand_sum: u8 = get_hand_sum_legacy(&dealer_hand);
 
             if dealer_hand_sum < 17 {
                 // dealer hit
                 println!("Dealer hits!");
-                deal_from_deck(deck, &mut dealer_hand);
+                deal_from_deck_legacy(deck, &mut dealer_hand);
+                print_hand_legacy("Dealer", &dealer_hand, false);
 
                 let mut dealer_hand_sum = 0;
                 for i in &dealer_hand {
@@ -238,72 +300,82 @@ fn play_hand(deck: &mut Vec<u8>, player_profile: &PlayerProfile, initial_player_
                 if dealer_hand_sum > 21 {
                     println!("Dealer has busted!");
                     is_dealer_hand_done = true;
-                    game_outcome = Some(GameOutcome::PlayerWin);
+                    for hand in &mut player.hands {
+                        if hand.payout.is_none() {
+                            hand.payout = Some(hand.bet);
+                        }
+                    }
                 }
             } else {
                 // dealer stay
                 println!("Dealer stays!");
                 is_dealer_hand_done = true;
             }
-            print_hands(&dealer_hand, &player_hand, false);
+            print_hands(&dealer_hand, &player, false);
             std::thread::sleep(Duration::from_millis(1000));
         }
     }
 
     // if there is not already a winner from earlier
     // compare hands
-    if game_outcome.is_none() {
-        let player_hand_sum: u8 = get_hand_sum(&player_hand);
+    let dealer_hand_sum = get_hand_sum_legacy(&dealer_hand);
+    println!("Dealer has {}", dealer_hand_sum);
+    for hand in &mut player.hands {
+        if hand.payout.is_none() {
+            let hand_sum = get_hand_sum(hand);
+            println!("Player has {}", hand_sum);
 
-        let dealer_hand_sum = get_hand_sum(&dealer_hand);
-
-        println!("Dealer has {}", dealer_hand_sum);
-        println!("Player has {}", player_hand_sum);
-
-        match player_hand_sum.cmp(&dealer_hand_sum) {
-            Ordering::Equal => {
-                game_outcome = Some(GameOutcome::Draw);
-            }
-            Ordering::Greater => {
-                game_outcome = Some(GameOutcome::PlayerWin);
-            }
-            Ordering::Less => {
-                // if player_hand > dealer_hand
-                game_outcome = Some(GameOutcome::PlayerLost);
+            match hand_sum.cmp(&dealer_hand_sum) {
+                Ordering::Equal => {
+                    hand.payout = Some(0);
+                }
+                Ordering::Greater => {
+                    hand.payout = Some(hand.bet);
+                }
+                Ordering::Less => {
+                    hand.payout = Some(-hand.bet);
+                }
             }
         }
     }
 
-    // end of hand logic - return bet to update balance
-    match game_outcome {
-        Some(GameOutcome::PlayerWin) => {
-            println!("You won {}!", player_bet);
-
-            player_bet
+    let mut total_payout = 0;
+    for hand in &player.hands {
+        let payout = hand.payout.expect("Error payout does not have value.");
+        if payout > 0 {
+            println!("You won {}!", payout.abs());
+        } else if payout == 0 {
+            println!("Push!");
+        } else {
+            println!("You lost {}!", payout.abs());
         }
-        Some(GameOutcome::PlayerWinBlackjack) => {
-            let player_bet_blackjack = (player_bet as f32 * 1.5) as i32;
-            println!("You won {}!", player_bet_blackjack);
+        total_payout += payout;
+    }
 
-            player_bet_blackjack
-        }
-        Some(GameOutcome::PlayerLost) => {
-            println!("You lost {}!", player_bet);
-
-            -player_bet
-        }
-        Some(GameOutcome::Draw) => {
-            println!("Push! no change!");
-
-            0
-        }
-        None => {
-            panic!("Invalid game_outcome None");
+    if player.hands.len() > 1 {
+        if total_payout > 0 {
+            println!("In total you won {}!", total_payout.abs());
+        } else if total_payout == 0 {
+            println!("In total it was a push!");
+        } else {
+            println!("In total you lost {}!", total_payout.abs());
         }
     }
+
+    total_payout
 }
 
-fn deal_from_deck(deck: &mut Vec<u8>, hand: &mut Vec<u8>) {
+fn deal_from_deck(deck: &mut Vec<u8>, hand: &mut Hand) {
+    if deck.is_empty() {
+        shuffle_new_deck(deck);
+    }
+
+    let card = deck.remove(deck.len() - 1);
+
+    hand.cards.push(card);
+}
+
+fn deal_from_deck_legacy(deck: &mut Vec<u8>, hand: &mut Vec<u8>) {
     if deck.is_empty() {
         shuffle_new_deck(deck);
     }
@@ -327,13 +399,40 @@ fn shuffle_new_deck(deck: &mut Vec<u8>) {
     deck.shuffle(&mut rand::thread_rng());
 }
 
-// TODO - perhaps we have multiple player hands
-fn print_hands(dealer_hand: &Vec<u8>, player_hand: &Vec<u8>, hide_first_dealer_card: bool) {
-    print_hand("Dealer", dealer_hand, hide_first_dealer_card);
-    print_hand("Player", player_hand, false);
+fn print_hands(dealer_hand: &Vec<u8>, player: &Player, hide_first_dealer_card: bool) {
+    print_hand_legacy("Dealer", dealer_hand, hide_first_dealer_card);
+    for hand in &player.hands {
+        print_hand("Player", hand, false);
+    }
 }
 
-fn print_hand(player_name: &str, hand: &Vec<u8>, hide_first_card: bool) {
+fn print_hand(player_name: &str, hand: &Hand, hide_first_card: bool) {
+    let mut hand_string = "[".to_string();
+    if hide_first_card {
+        for i in 0..hand.cards.len() {
+            if i == 0 {
+                hand_string.push('*');
+            } else {
+                hand_string.push_str(&(hand.cards[i].to_string()));
+            }
+            if i < hand.cards.len() - 1 {
+                hand_string.push(' ');
+            }
+        }
+    } else {
+        for i in 0..hand.cards.len() {
+            hand_string.push_str(&(hand.cards[i].to_string()));
+            if i < hand.cards.len() - 1 {
+                hand_string.push(' ');
+            }
+        }
+    }
+    hand_string.push(']');
+
+    println!("{}: {}", player_name, hand_string);
+}
+
+fn print_hand_legacy(player_name: &str, hand: &Vec<u8>, hide_first_card: bool) {
     let mut hand_string = "[".to_string();
     if hide_first_card {
         for i in 0..hand.len() {
@@ -365,22 +464,22 @@ fn all_elements_equal<T: PartialEq>(vec: &[T]) -> bool {
         .unwrap_or(true)
 }
 
-fn get_player_actions(
-    player_balance: i32,
-    player_bet: i32,
-    player_hand: &Vec<u8>,
-    previous_player_actions: &[PlayerAction],
-) -> Vec<PlayerAction> {
+fn get_player_actions(player_working_balance: i32, player_hand: &Hand) -> Vec<PlayerAction> {
     let mut player_actions = vec![PlayerAction::Hit, PlayerAction::Stay];
 
-    if player_bet * 2 <= player_balance
-        && !previous_player_actions.contains(&PlayerAction::DoubleDown)
+    if player_hand.bet * 2 <= player_working_balance
+        && !player_hand
+            .actions_taken
+            .contains(&PlayerAction::DoubleDown)
     {
         player_actions.push(PlayerAction::DoubleDown);
     }
 
-    if player_hand.len() == 2 && all_elements_equal(player_hand) {
-        //player_actions.push(PlayerAction::Split);
+    if player_hand.cards.len() == 2
+        && all_elements_equal(&player_hand.cards)
+        && player_hand.is_starting_hand
+    {
+        player_actions.push(PlayerAction::Split);
     }
 
     player_actions
@@ -407,13 +506,6 @@ enum PlayerAction {
     Stay,
     DoubleDown,
     Split,
-}
-
-enum GameOutcome {
-    PlayerWin,
-    PlayerWinBlackjack,
-    Draw,
-    PlayerLost,
 }
 
 fn get_player_profile_path_buf() -> PathBuf {
@@ -466,7 +558,24 @@ fn save_player_profile_to_disk(player_profile: &PlayerProfile) {
     serde_json::to_writer(file, player_profile).expect("Error: Failed to save player profile.");
 }
 
-fn get_hand_sum(hand: &[u8]) -> u8 {
+fn get_hand_sum(hand: &Hand) -> u8 {
+    let min_sum: u8 = hand.cards.iter().sum();
+
+    let number_of_aces = hand.cards.iter().filter(|&&x| x == 1_u8).count() as u8;
+
+    let max_ace_10_padding = (21_u8.saturating_sub(min_sum)) / 10_u8; // max amount of 10s we can add without going over 21
+
+    // compare what aces we have to the ideal amount of padding to be added
+    // make sure we add the best amount we can considering how much aces we have
+    let ace_adjustment = std::cmp::min(number_of_aces, max_ace_10_padding);
+
+    #[allow(clippy::let_and_return)]
+    let hand_value = min_sum + (ace_adjustment * 10);
+
+    hand_value
+}
+
+fn get_hand_sum_legacy(hand: &[u8]) -> u8 {
     let min_sum: u8 = hand.iter().sum();
 
     let number_of_aces = hand.iter().filter(|&&x| x == 1_u8).count() as u8;
@@ -494,27 +603,52 @@ struct PlayerProfile {
     pub balance: i32,
 }
 
+struct Player {
+    pub hands: Vec<Hand>,
+}
+
+struct Hand {
+    pub cards: Vec<u8>,
+    pub bet: i32,
+    pub payout: Option<i32>,
+    pub is_complete_taking_actions: bool,
+    pub avaiable_actions: Vec<PlayerAction>,
+    pub actions_taken: Vec<PlayerAction>,
+    pub is_starting_hand: bool,
+}
+
+// struct Card {
+//     pub value: u8,
+//     pub is_visible: bool,
+// }
+
 #[test]
 fn test_get_hand_sum() {
-    assert_eq!(get_hand_sum(&vec![10, 10]), 20);
-    assert_eq!(get_hand_sum(&vec![10, 10, 10]), 30);
-    assert_eq!(get_hand_sum(&vec![5, 6]), 11);
-    assert_eq!(get_hand_sum(&vec![6, 10]), 16);
-    assert_eq!(get_hand_sum(&vec![1, 10]), 21);
-    assert_eq!(get_hand_sum(&vec![4, 5]), 9);
-    assert_eq!(get_hand_sum(&vec![4, 5, 1]), 20);
-    assert_eq!(get_hand_sum(&vec![4, 5, 1, 1]), 21);
-    assert_eq!(get_hand_sum(&vec![4, 5, 1, 1, 1]), 12);
-    assert_eq!(get_hand_sum(&vec![10, 10, 1]), 21);
-    assert_eq!(get_hand_sum(&vec![10, 8]), 18);
-    assert_eq!(get_hand_sum(&vec![10, 8, 1]), 19);
-    assert_eq!(get_hand_sum(&vec![10, 8, 1, 1]), 20);
-    assert_eq!(get_hand_sum(&vec![]), 0);
-    assert_eq!(get_hand_sum(&vec![1]), 11);
-    assert_eq!(get_hand_sum(&vec![1, 1]), 12);
-    assert_eq!(get_hand_sum(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1]), 19);
-    assert_eq!(get_hand_sum(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]), 20);
-    assert_eq!(get_hand_sum(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]), 21);
-    assert_eq!(get_hand_sum(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]), 12);
-    assert_eq!(get_hand_sum(&vec![4]), 4);
+    assert_eq!(get_hand_sum_legacy(&vec![10, 10]), 20);
+    assert_eq!(get_hand_sum_legacy(&vec![10, 10, 10]), 30);
+    assert_eq!(get_hand_sum_legacy(&vec![5, 6]), 11);
+    assert_eq!(get_hand_sum_legacy(&vec![6, 10]), 16);
+    assert_eq!(get_hand_sum_legacy(&vec![1, 10]), 21);
+    assert_eq!(get_hand_sum_legacy(&vec![4, 5]), 9);
+    assert_eq!(get_hand_sum_legacy(&vec![4, 5, 1]), 20);
+    assert_eq!(get_hand_sum_legacy(&vec![4, 5, 1, 1]), 21);
+    assert_eq!(get_hand_sum_legacy(&vec![4, 5, 1, 1, 1]), 12);
+    assert_eq!(get_hand_sum_legacy(&vec![10, 10, 1]), 21);
+    assert_eq!(get_hand_sum_legacy(&vec![10, 8]), 18);
+    assert_eq!(get_hand_sum_legacy(&vec![10, 8, 1]), 19);
+    assert_eq!(get_hand_sum_legacy(&vec![10, 8, 1, 1]), 20);
+    assert_eq!(get_hand_sum_legacy(&vec![]), 0);
+    assert_eq!(get_hand_sum_legacy(&vec![1]), 11);
+    assert_eq!(get_hand_sum_legacy(&vec![1, 1]), 12);
+    assert_eq!(get_hand_sum_legacy(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1]), 19);
+    assert_eq!(get_hand_sum_legacy(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1]), 20);
+    assert_eq!(
+        get_hand_sum_legacy(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
+        21
+    );
+    assert_eq!(
+        get_hand_sum_legacy(&vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
+        12
+    );
+    assert_eq!(get_hand_sum_legacy(&vec![4]), 4);
 }
