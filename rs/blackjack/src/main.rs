@@ -7,13 +7,16 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::time::Duration;
 
-// TODO Split - probably add support for players having multiple hands
-// TODO dealer blackjack insurance.. maybe
+// TODO bug fixes and clean up messaging/outputs - getting there is pretty good now
 
 // Cards
 // 1(or 11) 2, 3, 4, 5, 6, 7, 8, 9, 10, J(10), Q(10), K(10)
 
 const PLAYER_STARTING_BALANCE: i32 = 500;
+
+// fun house rules
+const ALLOW_SPLIT_OF_SPLIT: bool = true;
+const ALLOW_DOUBLE_DOWN_ON_SPLIT: bool = true;
 
 fn main() {
     let mut is_game_running: bool = true;
@@ -87,13 +90,13 @@ fn main() {
 
 fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_bet: i32) -> i32 {
     let mut player = Player {
-        hands: vec![Hand {
+        hands: vec![PlayerHand {
             cards: vec![],
             bet: initial_player_bet,
             payout: None,
             is_complete_taking_actions: false,
             avaiable_actions: vec![],
-            actions_taken: vec![],
+            previous_actions_taken: vec![],
             is_starting_hand: true,
         }],
     };
@@ -116,8 +119,10 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
     deal_from_deck_legacy(deck, &mut dealer_hand);
 
     let is_dealer_blackjack = get_hand_sum_legacy(&dealer_hand) == 21;
+    let mut is_any_blackjack = is_dealer_blackjack;
     for hand in &mut player.hands {
         let is_hand_blackjack = get_hand_sum(hand) == 21;
+        is_any_blackjack |= is_hand_blackjack;
         if is_hand_blackjack && is_dealer_blackjack {
             println!("You and the dealer hit blackjack!");
             hand.is_complete_taking_actions = true;
@@ -133,14 +138,10 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
         }
     }
 
-    // show blackjack hands
-    // if game_outcome.is_some() {
-    //     print_hands(&dealer_hand, &player_hand, false);
-    // }
-
-    print_hand_legacy("Dealer", &dealer_hand, true);
-    for hand in &player.hands {
-        print_hand("Player", hand, false);
+    // we'll show all cards if there is a blackjack as for now
+    // the game would immediately end - let's let players count cards ;)
+    if is_any_blackjack {
+        print_hands(&dealer_hand, &player, false);
     }
 
     // play out all hands here
@@ -149,14 +150,12 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
         .iter()
         .all(|hand| hand.is_complete_taking_actions)
     {
-        let first_incomplete_hand_index: usize = player
-            .hands
-            .iter_mut()
-            .position(|hand| !hand.is_complete_taking_actions)
-            .unwrap();
+        // unwrap as we know there is an incomplete hand among the player's hands
+        let first_incomplete_hand_index: usize = get_first_incomplete_hand_index(&player).unwrap();
 
         // player action loop until they are done with hand
         while !player.hands[first_incomplete_hand_index].is_complete_taking_actions {
+            print_hands(&dealer_hand, &player, true);
             print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
 
             let mut has_player_action = false;
@@ -171,19 +170,26 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
                             .contains(&PlayerAction::Hit)
                         {
                             println!("You cannot hit at this time. Please enter a valid option.");
-                            print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
+                            print_player_actions(
+                                &player.hands[first_incomplete_hand_index].avaiable_actions,
+                            );
                         } else {
-                            player.hands[first_incomplete_hand_index].actions_taken.push(PlayerAction::Hit);
+                            player.hands[first_incomplete_hand_index]
+                                .previous_actions_taken
+                                .push(PlayerAction::Hit);
                             has_player_action = true;
 
                             println!("You decided to hit!");
                             deal_from_deck(deck, &mut player.hands[first_incomplete_hand_index]);
-                            let player_hand_sum: u8 = get_hand_sum(&player.hands[first_incomplete_hand_index]);
+                            let player_hand_sum: u8 =
+                                get_hand_sum(&player.hands[first_incomplete_hand_index]);
 
                             if player_hand_sum > 21 {
                                 println!("Sorry you have busted!");
-                                player.hands[first_incomplete_hand_index].is_complete_taking_actions = true;
-                                player.hands[first_incomplete_hand_index].payout = Some(-player.hands[first_incomplete_hand_index].bet);
+                                player.hands[first_incomplete_hand_index]
+                                    .is_complete_taking_actions = true;
+                                player.hands[first_incomplete_hand_index].payout =
+                                    Some(-player.hands[first_incomplete_hand_index].bet);
                             }
                         }
                     }
@@ -193,13 +199,18 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
                             .contains(&PlayerAction::Stay)
                         {
                             println!("You cannot stay at this time. Please enter a valid option.");
-                            print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
+                            print_player_actions(
+                                &player.hands[first_incomplete_hand_index].avaiable_actions,
+                            );
                         } else {
-                            player.hands[first_incomplete_hand_index].actions_taken.push(PlayerAction::Stay);
+                            player.hands[first_incomplete_hand_index]
+                                .previous_actions_taken
+                                .push(PlayerAction::Stay);
                             has_player_action = true;
 
                             println!("You decided to stay!");
-                            player.hands[first_incomplete_hand_index].is_complete_taking_actions = true;
+                            player.hands[first_incomplete_hand_index].is_complete_taking_actions =
+                                true;
                         }
                     }
                     "d" => {
@@ -210,27 +221,35 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
                             println!(
                                 "You cannot double down at this time. Please enter a valid option."
                             );
-                            print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
+                            print_player_actions(
+                                &player.hands[first_incomplete_hand_index].avaiable_actions,
+                            );
                         } else {
                             player.hands[first_incomplete_hand_index]
-                                .actions_taken
+                                .previous_actions_taken
                                 .push(PlayerAction::DoubleDown);
                             has_player_action = true;
 
                             player_working_balance -= player.hands[first_incomplete_hand_index].bet;
                             player.hands[first_incomplete_hand_index].bet *= 2;
                             println!(
-                                "You decided to double down! Your bet is now {}!",
+                                "You decided to double down! Your bet for this hand is now {}!",
                                 player.hands[first_incomplete_hand_index].bet
                             );
                             deal_from_deck(deck, &mut player.hands[first_incomplete_hand_index]);
-                            let player_hand_sum: u8 = get_hand_sum(&player.hands[first_incomplete_hand_index]);
+                            let player_hand_sum: u8 =
+                                get_hand_sum(&player.hands[first_incomplete_hand_index]);
                             if player_hand_sum > 21 {
                                 println!("Sorry you have busted!");
-                                player.hands[first_incomplete_hand_index].payout = Some(-player.hands[first_incomplete_hand_index].bet);
+                                player.hands[first_incomplete_hand_index].payout =
+                                    Some(-player.hands[first_incomplete_hand_index].bet);
                             }
 
-                            player.hands[first_incomplete_hand_index].is_complete_taking_actions = true;
+                            player.hands[first_incomplete_hand_index].is_complete_taking_actions =
+                                true;
+
+                            // show the hit even though we'll continue on to the dealer for more suspense
+                            print_hands(&dealer_hand, &player, true);
                         }
                     }
                     "p" => {
@@ -239,24 +258,27 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
                             .contains(&PlayerAction::Split)
                         {
                             println!("You cannot split at this time. Please enter a valid option.");
-                            print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
+                            print_player_actions(
+                                &player.hands[first_incomplete_hand_index].avaiable_actions,
+                            );
                         } else {
                             player.hands[first_incomplete_hand_index]
-                                .actions_taken
+                                .previous_actions_taken
                                 .push(PlayerAction::Split);
                             has_player_action = true;
+                            player_working_balance -= player.hands[first_incomplete_hand_index].bet;
 
                             player.hands[first_incomplete_hand_index].cards.remove(0);
 
                             deal_from_deck(deck, &mut player.hands[first_incomplete_hand_index]);
 
-                            let mut new_hand = Hand {
+                            let mut new_hand = PlayerHand {
                                 cards: vec![player.hands[first_incomplete_hand_index].cards[0]],
                                 bet: player.hands[first_incomplete_hand_index].bet,
                                 payout: None,
                                 is_complete_taking_actions: false,
                                 avaiable_actions: vec![],
-                                actions_taken: vec![],
+                                previous_actions_taken: vec![],
                                 is_starting_hand: false,
                             };
                             deal_from_deck(deck, &mut new_hand);
@@ -267,13 +289,16 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
                     }
                     _ => {
                         println!("Please enter a valid option.");
-                        print_player_actions(&player.hands[first_incomplete_hand_index].avaiable_actions);
+                        print_player_actions(
+                            &player.hands[first_incomplete_hand_index].avaiable_actions,
+                        );
                     }
                 }
                 player_action_buffer = String::new();
-                player.hands[first_incomplete_hand_index].avaiable_actions =
-                    get_player_actions(player_working_balance, &player.hands[first_incomplete_hand_index]);
-                print_hands(&dealer_hand, &player, true);
+                player.hands[first_incomplete_hand_index].avaiable_actions = get_player_actions(
+                    player_working_balance,
+                    &player.hands[first_incomplete_hand_index],
+                );
             }
         }
     }
@@ -290,7 +315,6 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
                 // dealer hit
                 println!("Dealer hits!");
                 deal_from_deck_legacy(deck, &mut dealer_hand);
-                print_hand_legacy("Dealer", &dealer_hand, false);
 
                 let mut dealer_hand_sum = 0;
                 for i in &dealer_hand {
@@ -317,23 +341,30 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
     }
 
     // if there is not already a winner from earlier
-    // compare hands
-    let dealer_hand_sum = get_hand_sum_legacy(&dealer_hand);
-    println!("Dealer has {}", dealer_hand_sum);
-    for hand in &mut player.hands {
-        if hand.payout.is_none() {
-            let hand_sum = get_hand_sum(hand);
-            println!("Player has {}", hand_sum);
+    let has_hands_to_resolve = player.hands.iter().any(|h| h.payout.is_none());
+    if has_hands_to_resolve {
+        // compare hands
+        let dealer_hand_sum = get_hand_sum_legacy(&dealer_hand);
+        println!("Dealer has {}", dealer_hand_sum);
+        for i in 0..player.hands.len() {
+            if player.hands[i].payout.is_none() {
+                let hand_sum = get_hand_sum(&player.hands[i]);
+                if player.hands.len() > 1 {
+                    println!("Player hand {} has {}", i + 1, hand_sum);
+                } else {
+                    println!("Player has {}", hand_sum);
+                }
 
-            match hand_sum.cmp(&dealer_hand_sum) {
-                Ordering::Equal => {
-                    hand.payout = Some(0);
-                }
-                Ordering::Greater => {
-                    hand.payout = Some(hand.bet);
-                }
-                Ordering::Less => {
-                    hand.payout = Some(-hand.bet);
+                match hand_sum.cmp(&dealer_hand_sum) {
+                    Ordering::Equal => {
+                        player.hands[i].payout = Some(0);
+                    }
+                    Ordering::Greater => {
+                        player.hands[i].payout = Some(player.hands[i].bet);
+                    }
+                    Ordering::Less => {
+                        player.hands[i].payout = Some(-player.hands[i].bet);
+                    }
                 }
             }
         }
@@ -365,7 +396,14 @@ fn play_round(deck: &mut Vec<u8>, initial_player_balance: i32, initial_player_be
     total_payout
 }
 
-fn deal_from_deck(deck: &mut Vec<u8>, hand: &mut Hand) {
+fn get_first_incomplete_hand_index(player: &Player) -> Option<usize> {
+    player
+        .hands
+        .iter()
+        .position(|hand| !hand.is_complete_taking_actions)
+}
+
+fn deal_from_deck(deck: &mut Vec<u8>, hand: &mut PlayerHand) {
     if deck.is_empty() {
         shuffle_new_deck(deck);
     }
@@ -401,33 +439,38 @@ fn shuffle_new_deck(deck: &mut Vec<u8>) {
 
 fn print_hands(dealer_hand: &Vec<u8>, player: &Player, hide_first_dealer_card: bool) {
     print_hand_legacy("Dealer", dealer_hand, hide_first_dealer_card);
-    for hand in &player.hands {
-        print_hand("Player", hand, false);
+    let first_incomplete_hand_index = get_first_incomplete_hand_index(&player);
+    if player.hands.len() > 1 {
+        for i in 0..player.hands.len() {
+            let needs_active_marker = match first_incomplete_hand_index {
+                Some(val) => i == val,
+                None => false,
+            };
+            
+            print_hand(
+                format!("Player hand {}", i + 1).as_str(),
+                &player.hands[i],
+                needs_active_marker,
+            );
+        }
+    } else if player.hands.len() == 1 {
+        print_hand("Player", &player.hands[0], false);
     }
 }
 
-fn print_hand(player_name: &str, hand: &Hand, hide_first_card: bool) {
+fn print_hand(player_name: &str, hand: &PlayerHand, display_active_marker: bool) {
     let mut hand_string = "[".to_string();
-    if hide_first_card {
-        for i in 0..hand.cards.len() {
-            if i == 0 {
-                hand_string.push('*');
-            } else {
-                hand_string.push_str(&(hand.cards[i].to_string()));
-            }
-            if i < hand.cards.len() - 1 {
-                hand_string.push(' ');
-            }
-        }
-    } else {
-        for i in 0..hand.cards.len() {
-            hand_string.push_str(&(hand.cards[i].to_string()));
-            if i < hand.cards.len() - 1 {
-                hand_string.push(' ');
-            }
+    for i in 0..hand.cards.len() {
+        hand_string.push_str(&(hand.cards[i].to_string()));
+        if i < hand.cards.len() - 1 {
+            hand_string.push(' ');
         }
     }
     hand_string.push(']');
+
+    if display_active_marker {
+        hand_string.push_str("*");
+    }
 
     println!("{}: {}", player_name, hand_string);
 }
@@ -464,20 +507,25 @@ fn all_elements_equal<T: PartialEq>(vec: &[T]) -> bool {
         .unwrap_or(true)
 }
 
-fn get_player_actions(player_working_balance: i32, player_hand: &Hand) -> Vec<PlayerAction> {
+fn get_player_actions(player_working_balance: i32, player_hand: &PlayerHand) -> Vec<PlayerAction> {
     let mut player_actions = vec![PlayerAction::Hit, PlayerAction::Stay];
 
-    if player_hand.bet * 2 <= player_working_balance
+    if player_hand.bet <= player_working_balance
         && !player_hand
-            .actions_taken
+            .previous_actions_taken
             .contains(&PlayerAction::DoubleDown)
+        && (ALLOW_DOUBLE_DOWN_ON_SPLIT || player_hand.is_starting_hand)
     {
         player_actions.push(PlayerAction::DoubleDown);
     }
 
     if player_hand.cards.len() == 2
         && all_elements_equal(&player_hand.cards)
-        && player_hand.is_starting_hand
+        && (ALLOW_SPLIT_OF_SPLIT || player_hand.is_starting_hand)
+        && player_hand.bet <= player_working_balance
+        && !player_hand
+            .previous_actions_taken
+            .contains(&PlayerAction::Split)
     {
         player_actions.push(PlayerAction::Split);
     }
@@ -529,7 +577,9 @@ fn create_player_profile_if_not_exists() {
             "We see you are a new player! We are starting your account with {} chips.",
             PLAYER_STARTING_BALANCE
         );
-        save_player_profile_to_disk(&PlayerProfile { balance: 500 })
+        save_player_profile_to_disk(&PlayerProfile {
+            balance: PLAYER_STARTING_BALANCE,
+        })
     }
 }
 
@@ -558,10 +608,14 @@ fn save_player_profile_to_disk(player_profile: &PlayerProfile) {
     serde_json::to_writer(file, player_profile).expect("Error: Failed to save player profile.");
 }
 
-fn get_hand_sum(hand: &Hand) -> u8 {
-    let min_sum: u8 = hand.cards.iter().sum();
+fn get_hand_sum(hand: &PlayerHand) -> u8 {
+    get_hand_sum_legacy(&hand.cards)
+}
 
-    let number_of_aces = hand.cards.iter().filter(|&&x| x == 1_u8).count() as u8;
+fn get_hand_sum_legacy(cards: &[u8]) -> u8 {
+    let min_sum: u8 = cards.iter().sum();
+
+    let number_of_aces = cards.iter().filter(|&&x| x == 1_u8).count() as u8;
 
     let max_ace_10_padding = (21_u8.saturating_sub(min_sum)) / 10_u8; // max amount of 10s we can add without going over 21
 
@@ -574,29 +628,6 @@ fn get_hand_sum(hand: &Hand) -> u8 {
 
     hand_value
 }
-
-fn get_hand_sum_legacy(hand: &[u8]) -> u8 {
-    let min_sum: u8 = hand.iter().sum();
-
-    let number_of_aces = hand.iter().filter(|&&x| x == 1_u8).count() as u8;
-
-    let max_ace_10_padding = (21_u8.saturating_sub(min_sum)) / 10_u8; // max amount of 10s we can add without going over 21
-
-    // compare what aces we have to the ideal amount of padding to be added
-    // make sure we add the best amount we can considering how much aces we have
-    let ace_adjustment = std::cmp::min(number_of_aces, max_ace_10_padding);
-
-    #[allow(clippy::let_and_return)]
-    let hand_value = min_sum + (ace_adjustment * 10);
-
-    hand_value
-}
-
-// fn read_line_from_stdin() -> std::io::Result<String> {
-//     let mut input = String::new();
-//     std::io::stdin().read_line(&mut input)?;
-//     Ok(input.trim().to_string())
-// }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PlayerProfile {
@@ -604,23 +635,18 @@ struct PlayerProfile {
 }
 
 struct Player {
-    pub hands: Vec<Hand>,
+    pub hands: Vec<PlayerHand>,
 }
 
-struct Hand {
+struct PlayerHand {
     pub cards: Vec<u8>,
     pub bet: i32,
     pub payout: Option<i32>,
     pub is_complete_taking_actions: bool,
     pub avaiable_actions: Vec<PlayerAction>,
-    pub actions_taken: Vec<PlayerAction>,
+    pub previous_actions_taken: Vec<PlayerAction>,
     pub is_starting_hand: bool,
 }
-
-// struct Card {
-//     pub value: u8,
-//     pub is_visible: bool,
-// }
 
 #[test]
 fn test_get_hand_sum() {
